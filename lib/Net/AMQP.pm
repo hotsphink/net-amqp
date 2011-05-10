@@ -62,7 +62,7 @@ sub parse_raw_frames {
     my ($class, $input_ref) = @_;
 
     my @frames;
-    while (length $$input_ref) {
+    while ($class->next_raw_frame_size($input_ref) > 0) {
         my ($type_id, $channel, $size) = unpack 'CnN', substr $$input_ref, 0, 7, '';
         if (! defined $size) {
             croak "Frame payload size not found in input";
@@ -83,6 +83,29 @@ sub parse_raw_frames {
         );
     }
     return @frames;
+}
+
+=head2 next_raw_frame_size ($string_ref)
+
+=over 4
+
+Given a scalar reference to a binary string, return the number of bytes in the next full frame, or zero if no full frames are available yet. Does not consume any data.
+
+=back
+
+=cut
+
+sub next_raw_frame_size {
+    my ($class, $input_ref) = @_;
+    our $HEADER_LEN ||= length(pack('CnN', 0, 0, 0));
+    our $FOOTER_LEN ||= length(pack('C', 0));
+
+    return 0 if (length($$input_ref) < $HEADER_LEN);
+
+    my ($type_id, $channel, $size) = unpack 'CnN', $$input_ref;
+    return 0 if (length($$input_ref) < $HEADER_LEN + $size + $FOOTER_LEN);
+
+    return $HEADER_LEN + $size + $FOOTER_LEN;
 }
 
 =head1 SEE ALSO
